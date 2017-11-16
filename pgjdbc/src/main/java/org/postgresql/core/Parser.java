@@ -294,10 +294,64 @@ public class Parser {
       if (col > 0) {
         nativeSql.append(", ");
       }
-      Utils.escapeIdentifier(nativeSql, columnName);
+      escapeIdentifier(nativeSql, columnName);
     }
     return true;
   }
+
+
+  
+  /**
+   * Escape the given identifier <tt>value</tt> and append it to the string builder <tt>sbuf</tt>.
+   * If <tt>sbuf</tt> is <tt>null</tt>, a new StringBuilder will be returned. This method is
+   * different from appendEscapedLiteral in that it includes the quoting required for the identifier
+   * while {@link #escapeLiteral(StringBuilder, String, boolean)} does not.
+   *
+   * @param sbuf the string builder to append to; or <tt>null</tt>
+   * @param value the string value
+   * @return the sbuf argument; or a new string builder for sbuf == null
+   * @throws SQLException if the string contains a <tt>\0</tt> character
+   */
+  public static StringBuilder escapeIdentifier(StringBuilder sbuf, String value)
+      throws SQLException {
+    if (sbuf == null) {
+      sbuf = new StringBuilder(2 + value.length() * 11 / 10); // Add 10% for escaping.
+    }
+    doAppendEscapedIdentifier(sbuf, value);
+    return sbuf;
+  }
+
+  /**
+   * Common part for appendEscapedIdentifier
+   *
+   * @param sbuf Either StringBuffer or StringBuilder as we do not expect any IOException to be
+   *        thrown.
+   * @param value value to append
+   */
+  private static void doAppendEscapedIdentifier(Appendable sbuf, String value) throws SQLException {
+    try {
+      //sbuf.append('"');
+
+      for (int i = 0; i < value.length(); ++i) {
+        char ch = value.charAt(i);
+        if (ch == '\0') {
+          throw new PSQLException(GT.tr("Zero bytes may not occur in identifiers."),
+              PSQLState.INVALID_PARAMETER_VALUE);
+        }
+        if (ch == '"') {
+          sbuf.append(ch);
+        }
+        sbuf.append(ch);
+      }
+
+      //sbuf.append('"');
+    } catch (IOException e) {
+      throw new PSQLException(GT.tr("No IOException expected from StringBuffer or StringBuilder"),
+          PSQLState.UNEXPECTED_ERROR, e);
+    }
+  }
+
+
 
   /**
    * Converts {@code List<Integer>} to {@code int[]}. Empty and {@code null} lists are converted to
